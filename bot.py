@@ -5,22 +5,24 @@ from bs4 import BeautifulSoup
 import time
 import os
 
-start_time = time.time()
-
 # =========================
 # CONFIG
 # =========================
 
 TOKEN = os.getenv("DISCORD_TOKEN")
+if not TOKEN:
+    raise ValueError("DISCORD_TOKEN is not set")
 
 CHANNEL_ID = 1485298968404426802
 
 RSS_FEEDS = [
-    "https://www.sydsvenskan.se/feeds/section/lund/feed.xml"
+    "https://www.sydsvenskan.se/feeds/section/lund/feed.xml",
     "https://fetchrss.com/feed/1wKfj4GZ41sg1wKfii1T22YU.rss"
 ]
 
 CHECK_INTERVAL = 60  # seconds
+
+start_time = time.time()
 
 # =========================
 # DISCORD SETUP
@@ -31,136 +33,82 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Store links already posted
 posted_links = set()
 
 # =========================
-# IMAGE EXTRACTION
+# ERROR LOGGING
 # =========================
 
-async def get_image(entry):
-    # media_content
-    if "media_content" in entry:
-        media = entry.media_content
-        if media:
-            if "url" in media[0]:
-                return media[0]["url"]
-
-    # enclosures
-    if "enclosures" in entry:
-        for enclosure in entry.enclosures:
-            if enclosure.get("type", "").startswith("image"):
-                return enclosure.get("href")
-
-    # parse HTML for image
-    description = entry.get("description", "")
-    soup = BeautifulSoup(description, "html.parser")
-
-    img = soup.find("img")
-
-    if img and img.get("src"):
-        return img["src"]
-
-    return None
+async def log_error(msg):
+    try:
+        channel = await bot.fetch_channel(CHANNEL_ID)
+        await channel.send(f"⚠️ Error: {msg}")
+    except:
+        print("Failed to send error log:", msg)
 
 # =========================
-# RSS CHECKER
+# RSS LOGIC
 # =========================
 
-@tasks.loop(seconds=CHECK_INTERVAL)
-async def check_feeds():
-    await run_feeds()
-    channel = bot.get_channel(CHANNEL_ID)
+async def run_feeds():
+    try:
+        channel = await bot.fetch_channel(CHANNEL_ID)
 
-    if not channel:
-        print("Channel not found")
-        return
-
-    for feed_url in RSS_FEEDS:
-        try:
+        for feed_url in RSS_FEEDS:
             feed = feedparser.parse(feed_url)
-
-            feed_name = feed.feed.get("title", "RSS Feed")
 
             for entry in reversed(feed.entries):
                 link = entry.get("link")
 
-                if not link:
-                    continue
-
-                if link in posted_links:
+                if not link or link in posted_links:
                     continue
 
                 posted_links.add(link)
 
                 title = entry.get("title", "New Post")
+
+                # clean description (optional)
                 description = entry.get("description", "")
-
-                # Clean HTML
                 soup = BeautifulSoup(description, "html.parser")
-                clean_description = soup.get_text()
-
-                # Discord embed limit
-                clean_description = clean_description[:4000]
-
-                image_url = await get_image(entry)
+                clean_text = soup.get_text()[:2000]
 
                 embed = discord.Embed(
                     title=title,
                     url=link,
-                    description=clean_description,
+                    description=clean_text,
                     color=discord.Color.blue()
                 )
-
-                embed.set_footer(text=feed_name)
-
-                if image_url:
-                    embed.set_image(url=image_url)
 
                 await channel.send(embed=embed)
 
                 print(f"Posted: {title}")
 
-        except Exception as e:
-            print(f"Error with feed {feed_url}: {e}")
-
-async def run_feeds():
-    channel = bot.get_channel(CHANNEL_ID)
-
-    for feed_url in RSS_FEEDS:
-        feed = feedparser.parse(feed_url)
-
-        for entry in reversed(feed.entries):
-            link = entry.get("link")
-
-            if not link or link in posted_links:
-                continue
-
-            posted_links.add(link)
-
-            title = entry.get("title", "New Post")
-
-            await channel.send(f"📰 {title}\n{link}")
+    except Exception as e:
+        await log_error(str(e))
 
 # =========================
-# Ping
+# LOOP
+# =========================
+
+@tasks.loop(seconds=CHECK_INTERVAL)
+async def check_feeds():
+    await run_feeds()
+
+# =========================
+# COMMANDS
 # =========================
 
 @bot.command()
 async def ping(ctx):
     start = time.time()
-    message = await ctx.send("Pinging...")
+    msg = await ctx.send("Pinging...")
     end = time.time()
 
     api_latency = round(bot.latency * 1000)
     msg_latency = round((end - start) * 1000)
 
-    await message.edit(content=f"🏓 Pong!\nAPI latency: {api_latency}ms\nMessage latency: {msg_latency}ms")
+    await msg.edit(content=f"🏓 Pong!\nAPI: {api_latency}ms\nMsg: {msg_latency}ms")
 
-
-# =========================
-# Uptime
-# =========================
 
 @bot.command()
 async def uptime(ctx):
@@ -170,39 +118,21 @@ async def uptime(ctx):
 
     await ctx.send(f"⏱️ Uptime: {hours}h {minutes%60}m {seconds%60}s")
 
-# =========================
-# Refresh
-# =========================  
-    
+
 @bot.command()
 async def refresh(ctx):
     await ctx.send("🔄 Checking feeds...")
     await run_feeds()
     await ctx.send("✅ Done!")
 
-# =========================
-# Error
-# =========================  
-
-ERROR_CHANNEL_ID = 1485298968404426802
-
-async def log_error(msg):
-    channel = bot.get_channel(ERROR_CHANNEL_ID)
-    if channel:
-        await channel.send(f"⚠️ Error: {msg}")
-
-# =========================
-# Help
-# =========================  
 
 @bot.command()
 async def helpbot(ctx):
     await ctx.send("""
-🤖 Bot commands:
-!ping - check latency
-!uptime - bot uptime
-!feeds - show RSS feeds
-!refresh - force update
+🤖 Commands:
+!ping
+!uptime
+!refresh
 """)
 
 # =========================
@@ -215,7 +145,7 @@ async def on_ready():
     check_feeds.start()
 
 # =========================
-# START BOT
+# RUN
 # =========================
 
 bot.run(TOKEN)
