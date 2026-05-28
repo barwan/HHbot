@@ -1,9 +1,8 @@
 import discord
-from discord.ext import tasks
+from discord.ext import commands, tasks
 import feedparser
 from bs4 import BeautifulSoup
 import time
-import os
 
 # =========================
 # CONFIG
