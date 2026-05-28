@@ -5,6 +5,8 @@ from bs4 import BeautifulSoup
 import time
 import os
 
+start_time = time.time()
+
 # =========================
 # CONFIG
 # =========================
@@ -15,9 +17,9 @@ CHANNEL_ID = 1485298968404426802
 
 RSS_FEEDS = [
     "https://www.sydsvenskan.se/feeds/section/lund/feed.xml",
-    "https://www.sydsvenskan.se/feeds/section/burlov/feed.xml"
-    "https://www.sydsvenskan.se/feeds/section/sverige/feed.xml"
-    "https://www.sydsvenskan.se/feeds/section/varlden/feed.xml"
+    "https://www.sydsvenskan.se/feeds/section/burlov/feed.xml",
+    "https://www.sydsvenskan.se/feeds/section/sverige/feed.xml",
+    "https://www.sydsvenskan.se/feeds/section/varlden/feed.xml",
     "https://fetchrss.com/feed/1wKfj4GZ41sg1wKfii1T22YU.rss"
 ]
 
@@ -70,7 +72,8 @@ async def get_image(entry):
 
 @tasks.loop(seconds=CHECK_INTERVAL)
 async def check_feeds():
-    channel = client.get_channel(CHANNEL_ID)
+    await run_feeds()
+    channel = bot.get_channel(CHANNEL_ID)
 
     if not channel:
         print("Channel not found")
@@ -124,6 +127,24 @@ async def check_feeds():
         except Exception as e:
             print(f"Error with feed {feed_url}: {e}")
 
+async def run_feeds():
+    channel = bot.get_channel(CHANNEL_ID)
+
+    for feed_url in RSS_FEEDS:
+        feed = feedparser.parse(feed_url)
+
+        for entry in reversed(feed.entries):
+            link = entry.get("link")
+
+            if not link or link in posted_links:
+                continue
+
+            posted_links.add(link)
+
+            title = entry.get("title", "New Post")
+
+            await channel.send(f"📰 {title}\n{link}")
+
 # =========================
 # Ping
 # =========================
@@ -139,7 +160,6 @@ async def ping(ctx):
 
     await message.edit(content=f"🏓 Pong!\nAPI latency: {api_latency}ms\nMessage latency: {msg_latency}ms")
 
-    start_time = time.time()
 
 # =========================
 # Uptime
@@ -160,8 +180,7 @@ async def uptime(ctx):
 @bot.command()
 async def refresh(ctx):
     await ctx.send("🔄 Checking feeds...")
-
-    await check_feeds()  # or your function logic
+    await run_feeds()
     await ctx.send("✅ Done!")
 
 # =========================
@@ -193,13 +212,13 @@ async def helpbot(ctx):
 # EVENTS
 # =========================
 
-@client.event
+@bot.event
 async def on_ready():
-    print(f"Logged in as {client.user}")
+    print(f"Logged in as {bot.user}")
     check_feeds.start()
 
 # =========================
 # START BOT
 # =========================
 
-client.run(TOKEN)
+bot.run(TOKEN)
