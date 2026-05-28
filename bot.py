@@ -122,6 +122,7 @@ async def run_feeds():
     """Fetch all RSS feeds and post new entries to Discord"""
     try:
         channel = await bot.fetch_channel(CHANNEL_ID)
+        new_posts = 0
 
         for feed_url in RSS_FEEDS:
             try:
@@ -135,13 +136,15 @@ async def run_feeds():
                 for entry in reversed(feed.entries):
                     link = entry.get("link")
 
-                    if not link or link in posted_links:
+                    if not link:
+                        continue
+                    
+                    # CRITICAL: Check if already posted BEFORE adding
+                    if link in posted_links:
                         continue
 
-                    posted_links.add(link)
-                    save_posted_links(posted_links)
-
                     title = entry.get("title", "New Post")
+                    print(f"New post found: {title}")
 
                     # Clean description
                     description = entry.get("description", "")
@@ -160,11 +163,20 @@ async def run_feeds():
                     if image_url:
                         embed.set_image(url=image_url)
 
+                    # ADD TO POSTED LINKS AND SAVE BEFORE POSTING
+                    posted_links.add(link)
+                    save_posted_links(posted_links)
+
+                    # Now send to Discord
                     await channel.send(embed=embed)
+                    new_posts += 1
                     print(f"Posted: {title}")
 
             except Exception as e:
                 await log_error(f"Error parsing feed {feed_url}: {str(e)}")
+
+        if new_posts > 0:
+            print(f"Feed check complete: {new_posts} new posts")
 
     except Exception as e:
         await log_error(f"Error in run_feeds: {str(e)}")
@@ -176,6 +188,9 @@ async def run_feeds():
 @tasks.loop(seconds=CHECK_INTERVAL)
 async def check_feeds():
     await run_feeds()
+
+# Track if task has been started to prevent multiple starts
+task_started = False
 
 # =========================
 # COMMANDS
@@ -235,10 +250,18 @@ async def stats(ctx):
 
 @bot.event
 async def on_ready():
+    global task_started
     print(f"Logged in as {bot.user}")
     print(f"Loaded {len(posted_links)} previously posted links")
     print(f"Monitoring {len(RSS_FEEDS)} RSS feeds")
-    check_feeds.start()
+    
+    # Only start the task once to prevent spam from multiple on_ready calls
+    if not task_started:
+        check_feeds.start()
+        task_started = True
+        print("Feed checker started")
+    else:
+        print("Feed checker already running")
 
 # =========================
 # RUN
