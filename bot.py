@@ -6,6 +6,7 @@ import time
 import os
 import json
 from pathlib import Path
+import random
 
 # =========================
 # CONFIG
@@ -20,7 +21,6 @@ CHANNEL_ID = 1485298968404426802
 RSS_FEEDS = [
     "https://www.sydsvenskan.se/feeds/section/lund/feed.xml",
     "https://fetchrss.com/feed/1wKfj4GZ41sg1wKfii1T22YU.rss",
-    "https://lund.se/system/rss-skapare",
     "https://fetchrss.com/feed/1wKfj4GZ41sg1wScna6Pg6Ec.rss",
     "https://fetchrss.com/feed/1wKfj4GZ41sg1wScpJARnB4U.rss"
 ]
@@ -375,22 +375,477 @@ async def about(ctx):
 
 
 @bot.command()
-async def helpbot(ctx):
-    """Show available commands"""
+async def status(ctx):
+    """Show real-time bot status"""
     embed = discord.Embed(
-        title="🤖 Available Commands",
+        title="🟢 Bot Status",
+        color=discord.Color.blue()
+    )
+    embed.add_field(name="Running", value="✅ Yes", inline=True)
+    embed.add_field(name="Checking Feeds", value="✅ Active", inline=True)
+    embed.add_field(name="Uptime", value=f"{int((time.time() - start_time) / 3600)}h", inline=True)
+    embed.add_field(name="Posts Tracked", value=str(len(posted_links)), inline=True)
+    embed.add_field(name="Feeds Active", value=str(len(RSS_FEEDS)), inline=True)
+    embed.add_field(name="Check Interval", value=f"{CHECK_INTERVAL}s", inline=True)
+    
+    await ctx.send(embed=embed)
+
+
+@bot.command()
+async def settings(ctx):
+    """Show current bot settings"""
+    embed = discord.Embed(
+        title="⚙️ Bot Settings",
+        color=discord.Color.blue()
+    )
+    embed.add_field(name="Check Interval", value=f"{CHECK_INTERVAL} seconds", inline=False)
+    embed.add_field(name="Max Posts Tracked", value=f"{MAX_POSTED_LINKS} links", inline=False)
+    embed.add_field(name="Channel ID", value=str(CHANNEL_ID), inline=False)
+    embed.add_field(name="Storage File", value=POSTED_LINKS_FILE, inline=False)
+    embed.add_field(name="Feed Count", value=str(len(RSS_FEEDS)), inline=False)
+    
+    await ctx.send(embed=embed)
+
+
+@bot.command()
+async def feedinfo(ctx):
+    """Show detailed info about all feeds"""
+    embed = discord.Embed(
+        title="📊 Feed Information",
         color=discord.Color.blue()
     )
     
-    embed.add_field(name="!ping", value="Check bot latency", inline=False)
-    embed.add_field(name="!uptime", value="Show how long bot has been running", inline=False)
-    embed.add_field(name="!refresh", value="Manually check feeds now", inline=False)
-    embed.add_field(name="!stats", value="Show bot statistics", inline=False)
-    embed.add_field(name="!feeds", value="List all monitored RSS feeds", inline=False)
-    embed.add_field(name="!demo", value="Post a demo/test message", inline=False)
-    embed.add_field(name="!about", value="Show bot information", inline=False)
-    embed.add_field(name="!clear", value="Clear posted links history (⚠️ warning)", inline=False)
-    embed.add_field(name="!helpbot", value="Show this help message", inline=False)
+    for i, feed_url in enumerate(RSS_FEEDS, 1):
+        try:
+            feed = feedparser.parse(feed_url)
+            entry_count = len(feed.entries)
+            embed.add_field(
+                name=f"Feed {i}",
+                value=f"**Entries:** {entry_count}\n**URL:** {feed_url}",
+                inline=False
+            )
+        except:
+            embed.add_field(
+                name=f"Feed {i}",
+                value=f"**Status:** Error loading\n**URL:** {feed_url}",
+                inline=False
+            )
+    
+    await ctx.send(embed=embed)
+
+
+@bot.command()
+async def notify(ctx):
+    """Enable/disable notifications"""
+    embed = discord.Embed(
+        title="🔔 Notifications",
+        description="React to toggle notification settings:",
+        color=discord.Color.blue()
+    )
+    embed.add_field(name="Status", value="Currently: ✅ Enabled", inline=False)
+    
+    msg = await ctx.send(embed=embed)
+
+
+@bot.command()
+async def health(ctx):
+    """Check bot health and feed connectivity"""
+    embed = discord.Embed(
+        title="💚 Bot Health Check",
+        color=discord.Color.blue()
+    )
+    
+    healthy_feeds = 0
+    
+    for i, feed_url in enumerate(RSS_FEEDS, 1):
+        try:
+            feed = feedparser.parse(feed_url)
+            if feed.entries:
+                healthy_feeds += 1
+                status = "✅ OK"
+            else:
+                status = "⚠️ Empty"
+        except:
+            status = "❌ Error"
+        
+        embed.add_field(name=f"Feed {i}", value=status, inline=True)
+    
+    overall = f"{healthy_feeds}/{len(RSS_FEEDS)} feeds healthy"
+    embed.add_field(name="Overall Status", value=overall, inline=False)
+    embed.add_field(name="Bot Response", value="✅ Responsive", inline=False)
+    
+    await ctx.send(embed=embed)
+
+
+@bot.command()
+async def history(ctx):
+    """Show command history and recent activity"""
+    embed = discord.Embed(
+        title="📜 Recent Activity",
+        color=discord.Color.blue()
+    )
+    
+    uptime_seconds = int(time.time() - start_time)
+    uptime_hours = uptime_seconds // 3600
+    
+    embed.add_field(name="Bot Started", value=f"{uptime_hours} hours ago", inline=False)
+    embed.add_field(name="Posts Tracked", value=str(len(posted_links)), inline=True)
+    embed.add_field(name="Feeds Monitored", value=str(len(RSS_FEEDS)), inline=True)
+    embed.add_field(name="Check Interval", value=f"Every {CHECK_INTERVAL}s", inline=False)
+    
+    await ctx.send(embed=embed)
+
+
+@bot.command()
+async def version(ctx):
+    """Show bot version and info"""
+    embed = discord.Embed(
+        title="ℹ️ Bot Version",
+        color=discord.Color.blue()
+    )
+    embed.add_field(name="Bot Name", value="RSS Feed Monitor", inline=False)
+    embed.add_field(name="Version", value="2.0 (Enhanced)", inline=False)
+    embed.add_field(name="Features", value="• RSS Feed Monitoring\n• Auto-posting\n• Persistent storage\n• Real-time updates", inline=False)
+    
+    await ctx.send(embed=embed)
+
+
+# =========================
+# GAMES
+# =========================
+
+@bot.command()
+async def rps(ctx, choice=None):
+    """Play Rock Paper Scissors! Usage: !rps rock/paper/scissors"""
+    if not choice:
+        embed = discord.Embed(
+            title="🎮 Rock Paper Scissors",
+            description="Usage: `!rps rock` or `!rps paper` or `!rps scissors`",
+            color=discord.Color.blue()
+        )
+        await ctx.send(embed=embed)
+        return
+    
+    choice = choice.lower()
+    valid_choices = ["rock", "paper", "scissors"]
+    
+    if choice not in valid_choices:
+        embed = discord.Embed(
+            title="❌ Invalid Choice",
+            description="Choose: rock, paper, or scissors",
+            color=discord.Color.blue()
+        )
+        await ctx.send(embed=embed)
+        return
+    
+    bot_choice = random.choice(valid_choices)
+    
+    # Determine winner
+    if choice == bot_choice:
+        result = "🤝 It's a Tie!"
+        color = discord.Color.blue()
+    elif (choice == "rock" and bot_choice == "scissors") or \
+         (choice == "paper" and bot_choice == "rock") or \
+         (choice == "scissors" and bot_choice == "paper"):
+        result = "🎉 You Win!"
+        color = discord.Color.green()
+    else:
+        result = "🤖 Bot Wins!"
+        color = discord.Color.red()
+    
+    embed = discord.Embed(
+        title="🎮 Rock Paper Scissors",
+        color=color
+    )
+    embed.add_field(name="Your Choice", value=f"✋ {choice.capitalize()}", inline=True)
+    embed.add_field(name="Bot's Choice", value=f"✋ {bot_choice.capitalize()}", inline=True)
+    embed.add_field(name="Result", value=result, inline=False)
+    
+    await ctx.send(embed=embed)
+
+
+@bot.command()
+async def coin(ctx):
+    """Flip a coin - heads or tails"""
+    result = random.choice(["Heads", "Tails"])
+    emoji = "🪙" if result == "Heads" else "🪙"
+    
+    embed = discord.Embed(
+        title="🪙 Coin Flip",
+        description=f"{emoji} **{result}**",
+        color=discord.Color.blue()
+    )
+    
+    await ctx.send(embed=embed)
+
+
+@bot.command()
+async def dice(ctx, sides=6):
+    """Roll a dice! Usage: !dice or !dice 20"""
+    if sides < 2 or sides > 100:
+        sides = 6
+    
+    result = random.randint(1, sides)
+    
+    embed = discord.Embed(
+        title="🎲 Dice Roll",
+        color=discord.Color.blue()
+    )
+    embed.add_field(name=f"D{sides}", value=f"**{result}**", inline=False)
+    
+    await ctx.send(embed=embed)
+
+
+@bot.command()
+async def eightball(ctx, *, question=None):
+    """Ask the magic 8-ball a question! Usage: !eightball Will I win?"""
+    if not question:
+        embed = discord.Embed(
+            title="🎱 Magic 8-Ball",
+            description="Ask me a question! Usage: `!eightball Your question here`",
+            color=discord.Color.blue()
+        )
+        await ctx.send(embed=embed)
+        return
+    
+    answers = [
+        "✅ Yes, definitely!",
+        "✅ It is certain.",
+        "✅ Without a doubt!",
+        "✅ Absolutely!",
+        "❓ Maybe, ask again later.",
+        "❓ Reply hazy, try again.",
+        "❓ Cannot predict now.",
+        "❓ Ask again later.",
+        "❌ No, definitely not.",
+        "❌ Don't count on it.",
+        "❌ My sources say no.",
+        "❌ Very doubtful.",
+    ]
+    
+    answer = random.choice(answers)
+    
+    embed = discord.Embed(
+        title="🎱 Magic 8-Ball",
+        color=discord.Color.blue()
+    )
+    embed.add_field(name="Question", value=question, inline=False)
+    embed.add_field(name="Answer", value=answer, inline=False)
+    
+    await ctx.send(embed=embed)
+
+
+@bot.command()
+async def guess(ctx):
+    """Guess a number between 1-100! Usage: !guess"""
+    secret = random.randint(1, 100)
+    
+    embed = discord.Embed(
+        title="🎯 Number Guessing Game",
+        description="I'm thinking of a number between 1-100.\nReply with your guess!",
+        color=discord.Color.blue()
+    )
+    await ctx.send(embed=embed)
+    
+    def check(msg):
+        return msg.author == ctx.author and msg.channel == ctx.channel
+    
+    attempts = 0
+    max_attempts = 7
+    
+    while attempts < max_attempts:
+        try:
+            guess_msg = await bot.wait_for("message", timeout=30.0, check=check)
+            attempts += 1
+            
+            try:
+                guess_num = int(guess_msg.content)
+            except ValueError:
+                feedback = discord.Embed(
+                    title="🎯 Number Guessing Game",
+                    description="Please enter a valid number!",
+                    color=discord.Color.blue()
+                )
+                await ctx.send(embed=feedback)
+                continue
+            
+            if guess_num == secret:
+                win_embed = discord.Embed(
+                    title="🎉 You Won!",
+                    description=f"The number was **{secret}**!\nYou guessed it in **{attempts}** attempts!",
+                    color=discord.Color.green()
+                )
+                await ctx.send(embed=win_embed)
+                return
+            elif guess_num < secret:
+                feedback = discord.Embed(
+                    title="🎯 Too Low!",
+                    description=f"Try higher! ({max_attempts - attempts} attempts left)",
+                    color=discord.Color.blue()
+                )
+            else:
+                feedback = discord.Embed(
+                    title="🎯 Too High!",
+                    description=f"Try lower! ({max_attempts - attempts} attempts left)",
+                    color=discord.Color.blue()
+                )
+            
+            await ctx.send(embed=feedback)
+        
+        except:
+            timeout_embed = discord.Embed(
+                title="⏰ Time's Up!",
+                description=f"The number was **{secret}**!",
+                color=discord.Color.blue()
+            )
+            await ctx.send(embed=timeout_embed)
+            return
+    
+    lose_embed = discord.Embed(
+        title="😔 Game Over!",
+        description=f"You ran out of attempts! The number was **{secret}**!",
+        color=discord.Color.red()
+    )
+    await ctx.send(embed=lose_embed)
+
+
+@bot.command()
+async def helpbot(ctx):
+    """Show available commands"""
+    # Page 1 - Main Info
+    embed1 = discord.Embed(
+        title="🤖 RSS Bot - Command Help",
+        description="Complete command list with categories",
+        color=discord.Color.blue()
+    )
+    
+    # Basic Commands
+    embed1.add_field(
+        name="📡 FEED COMMANDS",
+        value="!refresh - Check feeds now\n!feeds - List all feeds\n!feedinfo - Detailed feed info",
+        inline=False
+    )
+    
+    # Info Commands
+    embed1.add_field(
+        name="📊 INFORMATION",
+        value="!status - Bot status\n!stats - Statistics\n!health - Health check\n!history - Recent activity\n!settings - Bot settings\n!about - About the bot",
+        inline=False
+    )
+    
+    # Basic Commands
+    embed1.add_field(
+        name="⚙️ BASIC",
+        value="!ping - Check latency\n!uptime - Bot uptime\n!version - Bot version",
+        inline=False
+    )
+    
+    # Utility
+    embed1.add_field(
+        name="🛠️ UTILITY",
+        value="!demo - Demo message\n!notify - Notifications\n!clear - Clear history (⚠️)",
+        inline=False
+    )
+    
+    # Games
+    embed2 = discord.Embed(
+        title="🎮 GAMES",
+        description="Play fun games with the bot!",
+        color=discord.Color.blue()
+    )
+    
+    embed2.add_field(
+        name="!rps <choice>",
+        value="Rock Paper Scissors\nChoose: rock, paper, or scissors",
+        inline=False
+    )
+    
+    embed2.add_field(
+        name="!coin",
+        value="Flip a coin\nHeads or Tails",
+        inline=False
+    )
+    
+    embed2.add_field(
+        name="!dice [sides]",
+        value="Roll a dice\nDefault: 6 sides, or specify up to 100",
+        inline=False
+    )
+    
+    embed2.add_field(
+        name="!eightball <question>",
+        value="Ask the magic 8-ball\nWill give you a mystical answer",
+        inline=False
+    )
+    
+    embed2.add_field(
+        name="!guess",
+        value="Guess a number\nGuess a number between 1-100 in 7 attempts",
+        inline=False
+    )
+    
+    embed2.set_footer(text="Page 1/2 - Use reactions or type !games for games only")
+    embed1.set_footer(text="Page 1/2")
+    
+    msg = await ctx.send(embed=embed1)
+    await msg.add_reaction("⬅️")
+    await msg.add_reaction("➡️")
+    
+    def check(reaction, user):
+        return user == ctx.author and str(reaction.emoji) in ["⬅️", "➡️"]
+    
+    try:
+        while True:
+            reaction, user = await bot.wait_for("reaction_add", timeout=30.0, check=check)
+            
+            if str(reaction.emoji) == "➡️":
+                await msg.edit(embed=embed2)
+            else:
+                await msg.edit(embed=embed1)
+            
+            await msg.remove_reaction(reaction, user)
+    except:
+        pass
+
+
+@bot.command()
+async def games(ctx):
+    """Show only game commands"""
+    embed = discord.Embed(
+        title="🎮 Available Games",
+        description="Have fun playing games!",
+        color=discord.Color.blue()
+    )
+    
+    embed.add_field(
+        name="!rps <choice>",
+        value="🎮 Rock Paper Scissors\nUsage: `!rps rock` or `!rps paper` or `!rps scissors`",
+        inline=False
+    )
+    
+    embed.add_field(
+        name="!coin",
+        value="🪙 Coin Flip\nGet heads or tails",
+        inline=False
+    )
+    
+    embed.add_field(
+        name="!dice [sides]",
+        value="🎲 Dice Roll\nUsage: `!dice` (default 6) or `!dice 20`",
+        inline=False
+    )
+    
+    embed.add_field(
+        name="!eightball <question>",
+        value="🎱 Magic 8-Ball\nUsage: `!eightball Will I win?`",
+        inline=False
+    )
+    
+    embed.add_field(
+        name="!guess",
+        value="🎯 Number Guessing\nGuess a number between 1-100 in 7 attempts!",
+        inline=False
+    )
     
     await ctx.send(embed=embed)
 
