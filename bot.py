@@ -50,6 +50,33 @@ async def log_error(msg):
 # RSS LOGIC
 # =========================
 
+async def get_image(entry):
+    # 1. media_content (common RSS field)
+    media = entry.get("media_content")
+    if media and isinstance(media, list):
+        return media[0].get("url")
+
+    # 2. media_thumbnail (very common in news feeds)
+    thumb = entry.get("media_thumbnail")
+    if thumb and isinstance(thumb, list):
+        return thumb[0].get("url")
+
+    # 3. enclosures
+    enclosures = entry.get("enclosures", [])
+    for e in enclosures:
+        if "image" in e.get("type", ""):
+            return e.get("href")
+
+    # 4. try HTML description
+    description = entry.get("description", "")
+    soup = BeautifulSoup(description, "html.parser")
+
+    img = soup.find("img")
+    if img and img.get("src"):
+        return img["src"]
+
+    return None
+
 async def run_feeds():
     try:
         channel = await bot.fetch_channel(CHANNEL_ID)
@@ -72,12 +99,17 @@ async def run_feeds():
                 soup = BeautifulSoup(description, "html.parser")
                 clean_text = soup.get_text()[:2000]
 
+                image_url = await get_image(entry)
+
                 embed = discord.Embed(
                     title=title,
                     url=link,
                     description=clean_text,
                     color=discord.Color.blue()
                 )
+
+                if image_url:
+                    embed.set_image(url=image_url)
 
                 await channel.send(embed=embed)
 
