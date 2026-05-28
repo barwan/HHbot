@@ -206,7 +206,14 @@ async def ping(ctx):
     api_latency = round(bot.latency * 1000)
     msg_latency = round((end - start) * 1000)
 
-    await msg.edit(content=f"🏓 Pong!\nAPI: {api_latency}ms\nMsg: {msg_latency}ms")
+    embed = discord.Embed(
+        title="🏓 Pong!",
+        color=discord.Color.blue()
+    )
+    embed.add_field(name="API Latency", value=f"{api_latency}ms", inline=True)
+    embed.add_field(name="Message Latency", value=f"{msg_latency}ms", inline=True)
+
+    await msg.edit(embed=embed)
 
 
 @bot.command()
@@ -216,33 +223,174 @@ async def uptime(ctx):
     minutes = seconds // 60
     hours = minutes // 60
 
-    await ctx.send(f"⏱️ Uptime: {hours}h {minutes%60}m {seconds%60}s")
+    embed = discord.Embed(
+        title="⏱️ Bot Uptime",
+        description=f"{hours}h {minutes%60}m {seconds%60}s",
+        color=discord.Color.blue()
+    )
+    await ctx.send(embed=embed)
 
 
 @bot.command()
 async def refresh(ctx):
     """Manually trigger a feed check"""
-    await ctx.send("🔄 Checking feeds...")
+    embed = discord.Embed(
+        title="🔄 Checking feeds...",
+        color=discord.Color.blue()
+    )
+    msg = await ctx.send(embed=embed)
+    
     await run_feeds()
-    await ctx.send("✅ Done!")
-
-
-@bot.command()
-async def helpbot(ctx):
-    """Show available commands"""
-    await ctx.send("""
-🤖 Commands:
-!ping     - Check bot latency
-!uptime   - Show how long bot has been running
-!refresh  - Manually check feeds now
-!helpbot  - Show this help message
-""")
+    
+    embed = discord.Embed(
+        title="✅ Feed check complete!",
+        color=discord.Color.blue()
+    )
+    await msg.edit(embed=embed)
 
 
 @bot.command()
 async def stats(ctx):
     """Show number of posted links tracked"""
-    await ctx.send(f"📊 Tracking {len(posted_links)} posted links")
+    embed = discord.Embed(
+        title="📊 Bot Statistics",
+        color=discord.Color.blue()
+    )
+    embed.add_field(name="Posts Tracked", value=str(len(posted_links)), inline=True)
+    embed.add_field(name="Feeds Monitored", value=str(len(RSS_FEEDS)), inline=True)
+    embed.add_field(name="Check Interval", value=f"{CHECK_INTERVAL}s", inline=True)
+    
+    await ctx.send(embed=embed)
+
+
+@bot.command()
+async def feeds(ctx):
+    """Show all monitored RSS feeds"""
+    embed = discord.Embed(
+        title="📡 Monitored RSS Feeds",
+        color=discord.Color.blue()
+    )
+    
+    for i, feed_url in enumerate(RSS_FEEDS, 1):
+        embed.add_field(name=f"Feed {i}", value=feed_url, inline=False)
+    
+    await ctx.send(embed=embed)
+
+
+@bot.command()
+async def demo(ctx):
+    """Post a demo/test embed to show the bot is working"""
+    demo_embed = discord.Embed(
+        title="🤖 Demo Post - Bot is Working!",
+        url="https://github.com",
+        description="This is a test post from the RSS bot to verify everything is functioning correctly. The bot will post real news from RSS feeds to this channel.",
+        color=discord.Color.blue()
+    )
+    
+    demo_embed.add_field(
+        name="📰 What This Bot Does",
+        value="Monitors RSS feeds and posts new articles automatically.",
+        inline=False
+    )
+    
+    demo_embed.add_field(
+        name="⏱️ Check Interval",
+        value=f"Every {CHECK_INTERVAL} seconds",
+        inline=True
+    )
+    
+    demo_embed.add_field(
+        name="📡 Feeds Monitored",
+        value=f"{len(RSS_FEEDS)} feeds",
+        inline=True
+    )
+    
+    demo_embed.set_footer(text="✅ Bot is operational")
+    
+    await ctx.send(embed=demo_embed)
+    print("Demo embed posted")
+
+
+@bot.command()
+async def clear(ctx):
+    """Clear posted links history (⚠️ will cause spam on next restart!)"""
+    embed = discord.Embed(
+        title="⚠️ Warning",
+        description="This will clear the posted links history. The bot may re-post old articles on the next feed check.\n\nReact with ✅ to confirm, or ❌ to cancel.",
+        color=discord.Color.blue()
+    )
+    msg = await ctx.send(embed=embed)
+    
+    await msg.add_reaction("✅")
+    await msg.add_reaction("❌")
+    
+    def check(reaction, user):
+        return user == ctx.author and str(reaction.emoji) in ["✅", "❌"]
+    
+    try:
+        reaction, user = await bot.wait_for("reaction_add", timeout=30.0, check=check)
+        
+        if str(reaction.emoji) == "✅":
+            posted_links.clear()
+            save_posted_links(posted_links)
+            confirm_embed = discord.Embed(
+                title="✅ Cleared",
+                description="Posted links history has been cleared.",
+                color=discord.Color.blue()
+            )
+            await msg.edit(embed=confirm_embed)
+        else:
+            cancel_embed = discord.Embed(
+                title="❌ Cancelled",
+                description="Clear operation cancelled.",
+                color=discord.Color.blue()
+            )
+            await msg.edit(embed=cancel_embed)
+    
+    except:
+        timeout_embed = discord.Embed(
+            title="⏰ Timeout",
+            description="Request timed out.",
+            color=discord.Color.blue()
+        )
+        await msg.edit(embed=timeout_embed)
+
+
+@bot.command()
+async def about(ctx):
+    """Show information about the bot"""
+    embed = discord.Embed(
+        title="ℹ️ About This Bot",
+        description="A Discord bot that monitors RSS feeds and posts new articles to a channel.",
+        color=discord.Color.blue()
+    )
+    embed.add_field(name="Purpose", value="Automatically share RSS feed updates", inline=False)
+    embed.add_field(name="Current Feeds", value=str(len(RSS_FEEDS)), inline=True)
+    embed.add_field(name="Posts Tracked", value=str(len(posted_links)), inline=True)
+    embed.add_field(name="Uptime", value=f"{int((time.time() - start_time) / 3600)}h", inline=True)
+    
+    await ctx.send(embed=embed)
+
+
+@bot.command()
+async def helpbot(ctx):
+    """Show available commands"""
+    embed = discord.Embed(
+        title="🤖 Available Commands",
+        color=discord.Color.blue()
+    )
+    
+    embed.add_field(name="!ping", value="Check bot latency", inline=False)
+    embed.add_field(name="!uptime", value="Show how long bot has been running", inline=False)
+    embed.add_field(name="!refresh", value="Manually check feeds now", inline=False)
+    embed.add_field(name="!stats", value="Show bot statistics", inline=False)
+    embed.add_field(name="!feeds", value="List all monitored RSS feeds", inline=False)
+    embed.add_field(name="!demo", value="Post a demo/test message", inline=False)
+    embed.add_field(name="!about", value="Show bot information", inline=False)
+    embed.add_field(name="!clear", value="Clear posted links history (⚠️ warning)", inline=False)
+    embed.add_field(name="!helpbot", value="Show this help message", inline=False)
+    
+    await ctx.send(embed=embed)
 
 # =========================
 # EVENTS
