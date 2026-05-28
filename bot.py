@@ -20,7 +20,9 @@ CHANNEL_ID = 1485298968404426802
 RSS_FEEDS = [
     "https://www.sydsvenskan.se/feeds/section/lund/feed.xml",
     "https://fetchrss.com/feed/1wKfj4GZ41sg1wKfii1T22YU.rss",
-    "https://lund.se/system/rss-skapare"
+    "https://lund.se/system/rss-skapare",
+    "https://fetchrss.com/feed/1wKfj4GZ41sg1wScna6Pg6Ec.rss",
+    "https://fetchrss.com/feed/1wKfj4GZ41sg1wScpJARnB4U.rss"
 ]
 
 CHECK_INTERVAL = 60  # seconds
