@@ -503,8 +503,8 @@ async def version(ctx):
         title="ℹ️ Bot Version",
         color=discord.Color.blue()
     )
-    embed.add_field(name="Bot Name", value="RSS Feed Monitor", inline=False)
-    embed.add_field(name="Version", value="2.0 (Enhanced)", inline=False)
+    embed.add_field(name="Bot Name", value="HHbot @ Hevosen Hallinta (HH)", inline=False)
+    embed.add_field(name="Version", value="2.0 (Ultra Enhanced)", inline=False)
     embed.add_field(name="Features", value="• RSS Feed Monitoring\n• Auto-posting\n• Persistent storage\n• Real-time updates", inline=False)
     
     await ctx.send(embed=embed)
