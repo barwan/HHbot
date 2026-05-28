@@ -16,10 +16,7 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 CHANNEL_ID = 1485298968404426802
 
 RSS_FEEDS = [
-    "https://www.sydsvenskan.se/feeds/section/lund/feed.xml",
-    "https://www.sydsvenskan.se/feeds/section/burlov/feed.xml",
-    "https://www.sydsvenskan.se/feeds/section/sverige/feed.xml",
-    "https://www.sydsvenskan.se/feeds/section/varlden/feed.xml",
+    "https://www.sydsvenskan.se/feeds/section/lund/feed.xml"
     "https://fetchrss.com/feed/1wKfj4GZ41sg1wKfii1T22YU.rss"
 ]
 
