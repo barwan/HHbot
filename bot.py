@@ -21,6 +21,7 @@ CHANNEL_ID = 1485298968404426802
 RSS_FEEDS = [
     "https://www.sydsvenskan.se/feeds/section/lund/feed.xml",
     "https://fetchrss.com/feed/1wKfj4GZ41sg1wKfii1T22YU.rss",
+    "https://lund.se/system/rss-skapare",
     "https://fetchrss.com/feed/1wKfj4GZ41sg1wScna6Pg6Ec.rss",
     "https://fetchrss.com/feed/1wKfj4GZ41sg1wScpJARnB4U.rss"
 ]
@@ -125,14 +126,22 @@ async def run_feeds():
     try:
         channel = await bot.fetch_channel(CHANNEL_ID)
         new_posts = 0
+        failed_feeds = 0
 
-        for feed_url in RSS_FEEDS:
+        for idx, feed_url in enumerate(RSS_FEEDS, 1):
             try:
+                print(f"Checking Feed {idx}...")
                 feed = feedparser.parse(feed_url)
                 
                 # Check for feed parsing errors
                 if feed.bozo and isinstance(feed.bozo_exception, Exception):
-                    print(f"Warning: Feed parsing error for {feed_url}: {feed.bozo_exception}")
+                    print(f"Warning: Feed {idx} parsing error: {feed.bozo_exception}")
+                    failed_feeds += 1
+                    continue
+
+                if not feed.entries:
+                    print(f"Feed {idx} has no entries")
+                    continue
 
                 # Process entries in reverse (oldest to newest)
                 for entry in reversed(feed.entries):
@@ -175,13 +184,23 @@ async def run_feeds():
                     print(f"Posted: {title}")
 
             except Exception as e:
-                await log_error(f"Error parsing feed {feed_url}: {str(e)}")
+                failed_feeds += 1
+                error_msg = str(e)
+                # Only log critical errors, not temporary connection issues
+                if "503" not in error_msg and "timeout" not in error_msg.lower():
+                    print(f"Feed {idx} error: {error_msg}")
+                else:
+                    print(f"Feed {idx} temporarily unavailable (will retry later)")
 
-        if new_posts > 0:
-            print(f"Feed check complete: {new_posts} new posts")
+        status_msg = f"Feed check complete: {new_posts} new posts"
+        if failed_feeds > 0:
+            status_msg += f" ({failed_feeds} feeds unavailable)"
+        print(status_msg)
 
     except Exception as e:
-        await log_error(f"Error in run_feeds: {str(e)}")
+        error_str = str(e)
+        if "503" not in error_str and "connect" not in error_str.lower():
+            await log_error(f"Error in run_feeds: {error_str}")
 
 # =========================
 # LOOP
@@ -274,8 +293,11 @@ async def feeds(ctx):
     )
     
     for i, feed_url in enumerate(RSS_FEEDS, 1):
-        embed.add_field(name=f"Feed {i}", value=feed_url, inline=False)
+        # Shorten the URL display
+        display_url = feed_url if len(feed_url) < 70 else feed_url[:67] + "..."
+        embed.add_field(name=f"Feed {i} 📰", value=display_url, inline=False)
     
+    embed.set_footer(text=f"Total feeds: {len(RSS_FEEDS)}")
     await ctx.send(embed=embed)
 
 
@@ -418,18 +440,24 @@ async def feedinfo(ctx):
     for i, feed_url in enumerate(RSS_FEEDS, 1):
         try:
             feed = feedparser.parse(feed_url)
-            entry_count = len(feed.entries)
+            if feed.entries:
+                entry_count = len(feed.entries)
+                status = f"✅ {entry_count} entries"
+            else:
+                status = "⚠️ No entries"
+            
             embed.add_field(
                 name=f"Feed {i}",
-                value=f"**Entries:** {entry_count}\n**URL:** {feed_url}",
+                value=f"{status}\n{feed_url[:60]}...",
                 inline=False
             )
-        except:
+        except Exception as e:
             embed.add_field(
                 name=f"Feed {i}",
-                value=f"**Status:** Error loading\n**URL:** {feed_url}",
+                value=f"❌ Error: {str(e)[:50]}\n{feed_url[:60]}...",
                 inline=False
             )
+            print(f"Error loading feed {i}: {e}")
     
     await ctx.send(embed=embed)
 
@@ -460,13 +488,14 @@ async def health(ctx):
     for i, feed_url in enumerate(RSS_FEEDS, 1):
         try:
             feed = feedparser.parse(feed_url)
-            if feed.entries:
+            if feed.entries and len(feed.entries) > 0:
                 healthy_feeds += 1
                 status = "✅ OK"
             else:
                 status = "⚠️ Empty"
-        except:
-            status = "❌ Error"
+        except Exception as e:
+            status = f"❌ Error"
+            print(f"Feed {i} error: {e}")
         
         embed.add_field(name=f"Feed {i}", value=status, inline=True)
     
@@ -503,8 +532,8 @@ async def version(ctx):
         title="ℹ️ Bot Version",
         color=discord.Color.blue()
     )
-    embed.add_field(name="Bot Name", value="HHbot @ Hevosen Hallinta (HH)", inline=False)
-    embed.add_field(name="Version", value="2.0 (Ultra Enhanced)", inline=False)
+    embed.add_field(name="Bot Name", value="RSS Feed Monitor", inline=False)
+    embed.add_field(name="Version", value="2.0 (Enhanced)", inline=False)
     embed.add_field(name="Features", value="• RSS Feed Monitoring\n• Auto-posting\n• Persistent storage\n• Real-time updates", inline=False)
     
     await ctx.send(embed=embed)
