@@ -300,6 +300,7 @@ async def uptime(ctx):
     await ctx.send(embed=make_embed("⏱️ Uptime", f"{h}h {m}m"))
 
 @bot.command()
+@bot.command()
 async def stats(ctx):
     """Stats"""
     embed = make_embed("📊 Stats")
