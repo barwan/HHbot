@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 import asyncio
 import urllib.request
+import random
 
 # ==================== CONFIG ====================
 
@@ -21,7 +22,6 @@ CHECK_INTERVAL = 120
 RSS_FEEDS = (
     "https://www.sydsvenskan.se/feeds/section/lund/feed.xml",
     "https://fetchrss.com/feed/1wKfj4GZ41sg1wKfii1T22YU.rss",
-    "https://lund.se/system/rss-skapare",
     "https://fetchrss.com/feed/1wKfj4GZ41sg1wScna6Pg6Ec.rss",
     "https://fetchrss.com/feed/1wKfj4GZ41sg1wScpJARnB4U.rss"
 )
@@ -222,15 +222,90 @@ async def refresh(ctx):
     await run_feeds()
     await msg.edit(content="✅ Feed check complete!")
 
+# ==================== GAMES ====================
+
+@bot.command()
+async def rps(ctx, choice=None):
+    """Rock Paper Scissors - usage: !rps rock/paper/scissors"""
+    if not choice or choice.lower() not in ["rock", "paper", "scissors"]:
+        embed = discord.Embed(title="🎮 Rock Paper Scissors", description="Usage: `!rps rock/paper/scissors`", color=0x0099FF)
+        await ctx.send(embed=embed)
+        return
+    
+    choice = choice.lower()
+    bot_choice = random.choice(["rock", "paper", "scissors"])
+    wins = {("rock", "scissors"), ("paper", "rock"), ("scissors", "paper")}
+    
+    if choice == bot_choice:
+        result, color = "🤝 Tie!", 0x0099FF
+    elif (choice, bot_choice) in wins:
+        result, color = "🎉 You Win!", 0x00FF00
+    else:
+        result, color = "🤖 Bot Wins!", 0xFF0000
+    
+    embed = discord.Embed(title="🎮 Rock Paper Scissors", color=color)
+    embed.add_field(name="Your Choice", value=f"✋ {choice.capitalize()}", inline=True)
+    embed.add_field(name="Bot's Choice", value=f"✋ {bot_choice.capitalize()}", inline=True)
+    embed.add_field(name="Result", value=result, inline=False)
+    await ctx.send(embed=embed)
+
+@bot.command()
+async def coin(ctx):
+    """Flip a coin"""
+    result = random.choice(["Heads", "Tails"])
+    embed = discord.Embed(title="🪙 Coin Flip", description=f"🪙 **{result}**", color=0x0099FF)
+    await ctx.send(embed=embed)
+
+@bot.command()
+async def dice(ctx, sides: int = 6):
+    """Roll a dice - usage: !dice or !dice 20"""
+    sides = min(max(sides, 2), 100)
+    result = random.randint(1, sides)
+    embed = discord.Embed(title="🎲 Dice Roll", description=f"**d{sides}: {result}**", color=0x0099FF)
+    await ctx.send(embed=embed)
+
+@bot.command()
+async def eightball(ctx, *, question=None):
+    """Ask the magic 8-ball - usage: !eightball Your question?"""
+    if not question:
+        embed = discord.Embed(title="🎱 Magic 8-Ball", description="Usage: `!eightball Your question?`", color=0x0099FF)
+        await ctx.send(embed=embed)
+        return
+    
+    answers = [
+        "✅ Yes, definitely!",
+        "✅ It is certain.",
+        "✅ Absolutely!",
+        "❓ Maybe, ask again later.",
+        "❓ Cannot predict now.",
+        "❌ No, definitely not.",
+        "❌ Don't count on it.",
+        "❌ Very doubtful."
+    ]
+    
+    embed = discord.Embed(title="🎱 Magic 8-Ball", color=0x0099FF)
+    embed.add_field(name="Question", value=question, inline=False)
+    embed.add_field(name="Answer", value=random.choice(answers), inline=False)
+    await ctx.send(embed=embed)
+
+@bot.command()
+async def games(ctx):
+    """Show available games"""
+    embed = discord.Embed(title="🎮 Games", color=0x0099FF)
+    embed.add_field(name="!rps <choice>", value="Rock Paper Scissors (rock/paper/scissors)", inline=False)
+    embed.add_field(name="!coin", value="Flip a coin (heads/tails)", inline=False)
+    embed.add_field(name="!dice [sides]", value="Roll a dice (default 6, max 100)", inline=False)
+    embed.add_field(name="!eightball <question>", value="Ask the magic 8-ball", inline=False)
+    await ctx.send(embed=embed)
+
 @bot.command()
 async def help(ctx):
     """Show available commands"""
     embed = discord.Embed(title="🤖 Commands", color=0x0099FF)
-    embed.add_field(name="!ping", value="Check bot latency", inline=False)
-    embed.add_field(name="!stats", value="Show statistics", inline=False)
-    embed.add_field(name="!status", value="Show bot status", inline=False)
-    embed.add_field(name="!settings", value="Show settings", inline=False)
-    embed.add_field(name="!refresh", value="Check feeds manually", inline=False)
+    embed.add_field(name="📡 Feeds", value="!refresh • !stats • !status", inline=False)
+    embed.add_field(name="⚙️ Info", value="!settings • !help", inline=False)
+    embed.add_field(name="🎮 Games", value="!rps • !coin • !dice • !eightball • !games", inline=False)
+    embed.add_field(name="📊 Basic", value="!ping", inline=False)
     await ctx.send(embed=embed)
 
 # ==================== EVENTS ====================
