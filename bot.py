@@ -494,6 +494,8 @@ async def on_ready():
     print(f"Posts tracked: {len(posted_links)}")
     print(f"Monitoring {len(RSS_FEEDS)} feeds")
 
+    await bot.change_presence(activity=discord.Game(name="!help för kommandon"))
+
     if not task_started:
         try:
             check_feeds.start()
