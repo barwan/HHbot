@@ -9,6 +9,7 @@ from pathlib import Path
 import asyncio
 import urllib.request
 import random
+from datetime import datetime, timezone
 
 # ==================== CONFIG ====================
 
@@ -17,6 +18,7 @@ if not TOKEN:
     raise ValueError("DISCORD_TOKEN is not set")
 
 CHANNEL_ID = 1485298968404426802
+GENERAL_CHANNEL_ID = 1444706522130288881
 CHECK_INTERVAL = 120
 
 RSS_FEEDS = (
@@ -25,6 +27,108 @@ RSS_FEEDS = (
     "https://fetchrss.com/feed/1wKfj4GZ41sg1wScna6Pg6Ec.rss",
     "https://fetchrss.com/feed/1wKfj4GZ41sg1wScpJARnB4U.rss"
 )
+
+# ==================== STATIC DATA ====================
+
+BASSHUNTER_SONGS = [
+    ("Dota (2006)",                                  "https://www.youtube.com/watch?v=1wYNFfgrXTI"),
+    ("Vi Sitter I Ventrilo Och Spelar DotA (2006)",  "https://www.youtube.com/watch?v=qXUFNkF1CRg"),
+    ("Now You're Gone (2008)",                       "https://www.youtube.com/watch?v=6Fg4sBsTM84"),
+    ("All I Ever Wanted (2008)",                     "https://www.youtube.com/watch?v=uHsq8yQSxVo"),
+    ("Angel in the Night (2008)",                    "https://www.youtube.com/watch?v=K0hCm4GdMgM"),
+    ("I Miss You (2008)",                            "https://www.youtube.com/watch?v=MmSVCRKeqN4"),
+    ("Far Away (2008)",                              "https://www.youtube.com/watch?v=GtWQGM3aAa4"),
+    ("Walk on Water (2009)",                         "https://www.youtube.com/watch?v=D6FKNh5WRZY"),
+    ("Every Morning (2009)",                         "https://www.youtube.com/watch?v=FXDe4FQXANA"),
+    ("Saturday (2010)",                              "https://www.youtube.com/watch?v=oqMIaEszYOk"),
+    ("Please Don't Go (2010)",                       "https://www.youtube.com/watch?v=7EtScBUNxIY"),
+    ("Calling Time (2010)",                          "https://www.youtube.com/watch?v=LQQxOVJEhCk"),
+    ("Boyfriend (2010)",                             "https://www.youtube.com/watch?v=lqjGn53YLSA"),
+    ("Dream World (2011)",                           "https://www.youtube.com/watch?v=dWGPLiQW3cw"),
+    ("Jungle (2011)",                                "https://www.youtube.com/watch?v=LHBsKB3pPcE"),
+    ("Northern Light (2013)",                        "https://www.youtube.com/watch?v=7yb5e4WIlpg"),
+    ("Crash and Burn (2014)",                        "https://www.youtube.com/watch?v=RGvJQFBRJGM"),
+    ("Airhead (2015)",                               "https://www.youtube.com/watch?v=m7XQ5eFZqeQ"),
+    ("Russia Privjet (2006)",                        "https://www.youtube.com/watch?v=gMBKNxnWAIE"),
+    ("Boten Anna (2006)",                            "https://www.youtube.com/watch?v=1TD3ByZ0ek4"),
+]
+
+# Måndag=0, Onsdag=2, Fredag=4, Söndag=6
+PING_DAYS = {0, 2, 4, 6}
+
+RANDOM_PINGS = [
+    # Skämt
+    ("😂 Skämt", "Varför bär skelett inte på väskor? För att de inte har några nerver."),
+    ("😂 Skämt", "Vad kallar man en ko utan ben? Köttfärs."),
+    ("😂 Skämt", "Vad kallar man en norsk kriminell? En fjordbrytare."),
+    ("😂 Skämt", "Vad kallar man en dansk som vinner på lotto? En lycklig granne."),
+    ("😂 Skämt", "Varför gick spöket till IKEA? Det behövde ett nytt lakan."),
+    ("😂 Skämt", "Vad sa havet till stranden? Ingenting, det vinkade bara."),
+    ("😂 Skämt", "Vad kallar man en snögubbe i juli? En pöl."),
+    ("😂 Skämt", "Varför är matematikböcker så ledsna? De har så många problem."),
+    ("😂 Skämt", "Hur vet man att en elefant har varit i kylskåpet? Det finns fotspår i smöret."),
+    ("😂 Skämt", "Varför cyklar inte elefanter? De passar inte i cykelbyxor."),
+    # Fakta
+    ("🧠 Slumpmässig fakta", "En bläckfisk har tre hjärtan och blått blod."),
+    ("🧠 Slumpmässig fakta", "Sverige har fler öar än något annat land i Europa – över 220 000 stycken."),
+    ("🧠 Slumpmässig fakta", "Honungsbin flyger i snitt 88 000 km för att producera ett kilo honung."),
+    ("🧠 Slumpmässig fakta", "Det tar 8 minuter och 20 sekunder för ljuset att nå jorden från solen."),
+    ("🧠 Slumpmässig fakta", "Katter sover ungefär 16 timmar om dagen. Lyckliga katter."),
+    ("🧠 Slumpmässig fakta", "En snigelsusp kan resa upp till 50 meter på en timme – om den verkligen anstränger sig."),
+    ("🧠 Slumpmässig fakta", "Wombaters bajsar i kubform. Det är det enda djuret som gör det."),
+    ("🧠 Slumpmässig fakta", "IKEA är uppkallad efter grundarens initialer och hemby: Ingvar Kamprad, Elmtaryd, Agunnaryd."),
+    ("🧠 Slumpmässig fakta", "En grupp flamingos kallas en flamboyance. Passande."),
+    ("🧠 Slumpmässig fakta", "Kroppen innehåller tillräckligt med järn för att smida en 8 cm lång spik."),
+    # Frågor / interaktion
+    ("🤔 Fråga för dagen", "Om du kunde äta en sak resten av livet, vad skulle det vara? Svara nedan 👇"),
+    ("🤔 Fråga för dagen", "Vad är det bästa med att bo i Sverige? Svara nedan 👇"),
+    ("🤔 Fråga för dagen", "Pizza eller tacos? Det här avgörs EN GÅNG FÖR ALLA. Svara nedan 👇"),
+    ("🤔 Fråga för dagen", "Vilket är det bästa TV-spelet någonsin? Fight me. Svara nedan 👇"),
+    ("🤔 Fråga för dagen", "Om du fick en superförmåga, vilken skulle du välja? Svara nedan 👇"),
+    # Random/roligt
+    ("💡 Dagens visdom", "Om du inte kan förklara något enkelt förstår du det inte tillräckligt bra. – Einstein (typ)"),
+    ("💡 Dagens visdom", "En dag är 86 400 sekunder. Vad gör du med dina?"),
+    ("💡 Dagens visdom", "Kom ihåg: även en bruten klocka har rätt två gånger om dagen."),
+    ("🎲 Slumpen säger", "Dagens lyckliga nummer är: " + str(random.randint(1, 100))),
+    ("🎲 Slumpen säger", "Sannolikheten att du ens existerar är 1 på 400 biljoner. Du vann redan lotteriet."),
+    ("🎵 Basshunter-hörna", "Påminnelse: Dota av Basshunter är ett mästerverk och det är inte diskuterbart."),
+    ("🇸🇪 Svenska klassiker", "Ingen fredag utan att påminna om att surströmming faktiskt är god. (Lögn.)"),
+    ("☕ Påminnelse", "Har du druckit vatten idag? Drick vatten. Gå nu."),
+    ("🌙 Kväll-check", "Vad har du åstadkommit idag? Även 'ingenting' räknas som ett val."),
+]
+
+JOKES = [
+    "Varför bär skelett inte på väskor? För att de inte har några nerver.",
+    "Vad kallas en sovande dinosaurie? En dinorsar.",
+    "Varför fick fågelskrämman ett pris? För att den var enastående i sitt fält.",
+    "Vad kallar man en blind dinosaurie? Doyouthinkhesaurus.",
+    "Varför cyklade cykeln inte längre? Den var trött på att köra runt i cirklar.",
+    "Vad sa havet till stranden? Ingenting, det vinkade bara.",
+    "Varför är matematikböcker så ledsna? De har så många problem.",
+    "Vad kallar man en ko utan ben? Köttfärs.",
+    "Hur vet man att en elefant har varit i kylskåpet? Det finns fotspår i smöret.",
+    "Varför fick tomaten rött? För att den såg salladskläderna.",
+    "Vad kallar man en fisk utan ögon? En fsk.",
+    "Varför kan man inte lita på atomer? De hittar på allt.",
+    "Vad sa ena väggen till den andra väggen? Vi ses i hörnet.",
+    "Varför är sjörövarnas pirat så billig? Den är alltid på REA.",
+    "Vad kallar man en björn utan tänder? En gummibasse.",
+    "Varför gick datorn till doktorn? Den hade ett virus.",
+    "Vad kallar man en lat känguru? En pungsofa.",
+    "Varför är Sverigekartan alltid ledsen? För att den alltid pekar norrut.",
+    "Vad sa klockan till bältet? Du omger mig men jag tickar fortfarande.",
+    "Varför kan inte cykeln stå själv? Den är tvåhjuling och behöver stöd.",
+    "Vad kallar man en snögubbe i juli? En pöl.",
+    "Varför fick fotbollsplanen ont? För att det stod elva man på den.",
+    "Vad sa tallriken till skeden? Sluta röra om i mina känslor.",
+    "Varför är kontoret alltid kallt? För att det är fullt av fläktar.",
+    "Vad kallar man en norsk kriminell? En fjordbrytare.",
+    "Varför sover fiskar aldrig? För att de är rädda att drömma om krokarna.",
+    "Vad sa vänstra handen till den högra? Du är alltid så rätt.",
+    "Varför cyklar inte elefanter? De passar inte i cykelbyxor.",
+    "Vad kallar man en dansk som vinner på lotto? En lycklig granne.",
+    "Varför gick spöket till IKEA? Det behövde ett nytt lakan.",
+]
 
 # ==================== DISCORD SETUP ====================
 
@@ -52,7 +156,26 @@ def save_posted_links(links):
     except:
         pass
 
+def load_ping_state():
+    """Load last ping date"""
+    try:
+        if Path("ping_state.json").exists():
+            with open("ping_state.json") as f:
+                return json.load(f).get("last_ping", "")
+    except:
+        pass
+    return ""
+
+def save_ping_state(date_str):
+    """Save last ping date"""
+    try:
+        with open("ping_state.json", "w") as f:
+            json.dump({"last_ping": date_str}, f)
+    except:
+        pass
+
 posted_links = load_posted_links()
+last_ping_date = load_ping_state()
 task_started = False
 start_time = time.time()
 
@@ -61,14 +184,11 @@ start_time = time.time()
 def get_image(entry):
     """Extract image URL from feed entry"""
     try:
-        # Check media_content
         media = entry.get("media_content")
         if media and isinstance(media, list):
             url = media[0].get("url")
             if url and url.startswith("http"):
                 return url
-        
-        # Check media_thumbnail
         thumb = entry.get("media_thumbnail")
         if thumb and isinstance(thumb, list):
             url = thumb[0].get("url")
@@ -100,60 +220,45 @@ async def process_feed(feed_url):
         data = await fetch_feed(feed_url)
         if not data:
             return 0
-        
+
         feed = feedparser.parse(data)
         if not feed or not feed.entries:
             return 0
-        
+
         channel = await bot.fetch_channel(CHANNEL_ID)
         new_posts = 0
-        
-        # Process last 15 entries
+
         for entry in list(reversed(feed.entries))[:15]:
             link = entry.get("link")
-            
-            # Skip if no link or already posted
             if not link or link in posted_links:
                 continue
-            
+
             posted_links.add(link)
-            
+
             try:
-                # Get title and description
                 title = entry.get("title", "Post")[:150]
                 desc = entry.get("description", "")
-                
-                if desc:
-                    soup = BeautifulSoup(desc, "html.parser")
-                    clean = soup.get_text()[:400]
-                else:
-                    clean = ""
-                
-                # Get image
+                clean = BeautifulSoup(desc, "html.parser").get_text()[:400] if desc else ""
                 image_url = get_image(entry)
-                
-                # Create and send embed
+
                 embed = discord.Embed(
                     title=title,
                     url=link,
                     description=clean,
                     color=0x0099FF
                 )
-                
                 if image_url:
                     embed.set_image(url=image_url)
-                
+
                 await channel.send(embed=embed)
                 new_posts += 1
-                
-                # Delay to prevent rate limiting
                 await asyncio.sleep(0.2)
-                
+
             except Exception as e:
                 print(f"Post error: {e}")
-        
+
         return new_posts
-        
+
     except Exception as e:
         print(f"Feed error: {e}")
         return 0
@@ -165,21 +270,50 @@ async def run_feeds():
         for url in RSS_FEEDS:
             total += await process_feed(url)
             await asyncio.sleep(0.05)
-        
-        # Save posted links if new posts found
+
         if total > 0:
             save_posted_links(posted_links)
             print(f"Posted {total} new articles")
-            
+
     except Exception as e:
         print(f"Run error: {e}")
+
+# ==================== EVERYONE PING CHECKER ====================
+
+async def check_everyone_ping():
+    """Post @everyone with random content on Mon/Wed/Fri/Sun (once per day)"""
+    global last_ping_date
+    try:
+        now = datetime.now(timezone.utc)
+        if now.weekday() not in PING_DAYS:
+            return
+        today_str = now.strftime("%Y-%m-%d")
+        if today_str == last_ping_date:
+            return
+
+        title, content = random.choice(RANDOM_PINGS)
+
+        # Friday always gets the extra fredag message first
+        channel = await bot.fetch_channel(GENERAL_CHANNEL_ID)
+        if now.weekday() == 4:
+            await channel.send("@everyone Nu e det fredag! 🎉")
+
+        embed = discord.Embed(title=title, description=content, color=0xFF6600)
+        await channel.send("@everyone", embed=embed)
+
+        last_ping_date = today_str
+        save_ping_state(today_str)
+        print(f"✅ Everyone ping posted for {today_str} (day {now.weekday()})")
+    except Exception as e:
+        print(f"Ping check error: {e}")
 
 # ==================== BACKGROUND TASK ====================
 
 @tasks.loop(seconds=CHECK_INTERVAL)
 async def check_feeds():
-    """Background task to check feeds periodically"""
+    """Background task to check feeds and everyone pings periodically"""
     await run_feeds()
+    await check_everyone_ping()
 
 # ==================== COMMANDS ====================
 
@@ -202,9 +336,12 @@ async def stats(ctx):
 @bot.command()
 async def status(ctx):
     """Show bot status"""
+    uptime_s = int(time.time() - start_time)
+    h, m, s = uptime_s // 3600, (uptime_s % 3600) // 60, uptime_s % 60
     embed = discord.Embed(title="🟢 Status", color=0x0099FF)
     embed.add_field(name="Running", value="✅ Yes", inline=True)
     embed.add_field(name="Posts Tracked", value=str(len(posted_links)), inline=True)
+    embed.add_field(name="Uptime", value=f"{h}h {m}m {s}s", inline=True)
     await ctx.send(embed=embed)
 
 @bot.command()
@@ -222,6 +359,33 @@ async def refresh(ctx):
     await run_feeds()
     await msg.edit(content="✅ Feed check complete!")
 
+# ==================== BASSHUNTER ====================
+
+@bot.command()
+async def basshunter(ctx):
+    """Send a random Basshunter song with YouTube link"""
+    name, url = random.choice(BASSHUNTER_SONGS)
+    embed = discord.Embed(
+        title=f"🎧 {name}",
+        url=url,
+        description=f"[▶️ Play on YouTube]({url})",
+        color=0x9B59B6
+    )
+    embed.set_footer(text="NOW WE'RE GOING TO SWEDEN 🇸🇪")
+    await ctx.send(embed=embed)
+
+# ==================== JOKES ====================
+
+@bot.command()
+async def joke(ctx):
+    """Tell a random shitty joke"""
+    embed = discord.Embed(
+        title="😂 Joke",
+        description=random.choice(JOKES),
+        color=0xF1C40F
+    )
+    await ctx.send(embed=embed)
+
 # ==================== GAMES ====================
 
 @bot.command()
@@ -231,18 +395,18 @@ async def rps(ctx, choice=None):
         embed = discord.Embed(title="🎮 Rock Paper Scissors", description="Usage: `!rps rock/paper/scissors`", color=0x0099FF)
         await ctx.send(embed=embed)
         return
-    
+
     choice = choice.lower()
     bot_choice = random.choice(["rock", "paper", "scissors"])
     wins = {("rock", "scissors"), ("paper", "rock"), ("scissors", "paper")}
-    
+
     if choice == bot_choice:
         result, color = "🤝 Tie!", 0x0099FF
     elif (choice, bot_choice) in wins:
         result, color = "🎉 You Win!", 0x00FF00
     else:
         result, color = "🤖 Bot Wins!", 0xFF0000
-    
+
     embed = discord.Embed(title="🎮 Rock Paper Scissors", color=color)
     embed.add_field(name="Your Choice", value=f"✋ {choice.capitalize()}", inline=True)
     embed.add_field(name="Bot's Choice", value=f"✋ {bot_choice.capitalize()}", inline=True)
@@ -271,7 +435,7 @@ async def eightball(ctx, *, question=None):
         embed = discord.Embed(title="🎱 Magic 8-Ball", description="Usage: `!eightball Your question?`", color=0x0099FF)
         await ctx.send(embed=embed)
         return
-    
+
     answers = [
         "✅ Yes, definitely!",
         "✅ It is certain.",
@@ -282,10 +446,25 @@ async def eightball(ctx, *, question=None):
         "❌ Don't count on it.",
         "❌ Very doubtful."
     ]
-    
+
     embed = discord.Embed(title="🎱 Magic 8-Ball", color=0x0099FF)
     embed.add_field(name="Question", value=question, inline=False)
     embed.add_field(name="Answer", value=random.choice(answers), inline=False)
+    await ctx.send(embed=embed)
+
+@bot.command()
+async def choose(ctx, *, options=None):
+    """Pick one of your options - usage: !choose pizza or burger or sushi"""
+    if not options or " or " not in options.lower():
+        embed = discord.Embed(title="🤔 Choose", description="Usage: `!choose option1 or option2 or option3`", color=0x0099FF)
+        await ctx.send(embed=embed)
+        return
+    choices = [o.strip() for o in options.split(" or ") if o.strip()]
+    if len(choices) < 2:
+        await ctx.send("Give me at least 2 options separated by ` or `!")
+        return
+    pick = random.choice(choices)
+    embed = discord.Embed(title="🤔 I Choose...", description=f"**{pick}**", color=0x2ECC71)
     await ctx.send(embed=embed)
 
 @bot.command()
@@ -296,6 +475,7 @@ async def games(ctx):
     embed.add_field(name="!coin", value="Flip a coin (heads/tails)", inline=False)
     embed.add_field(name="!dice [sides]", value="Roll a dice (default 6, max 100)", inline=False)
     embed.add_field(name="!eightball <question>", value="Ask the magic 8-ball", inline=False)
+    embed.add_field(name="!choose <a or b or c>", value="Let the bot decide for you", inline=False)
     await ctx.send(embed=embed)
 
 @bot.command()
@@ -304,7 +484,8 @@ async def help(ctx):
     embed = discord.Embed(title="🤖 Commands", color=0x0099FF)
     embed.add_field(name="📡 Feeds", value="!refresh • !stats • !status", inline=False)
     embed.add_field(name="⚙️ Info", value="!settings • !help", inline=False)
-    embed.add_field(name="🎮 Games", value="!rps • !coin • !dice • !eightball • !games", inline=False)
+    embed.add_field(name="🎮 Games", value="!rps • !coin • !dice • !eightball • !choose • !games", inline=False)
+    embed.add_field(name="🎵 Fun", value="!basshunter • !joke", inline=False)
     embed.add_field(name="📊 Basic", value="!ping", inline=False)
     await ctx.send(embed=embed)
 
@@ -317,7 +498,7 @@ async def on_ready():
     print(f"✅ {bot.user} is online")
     print(f"Posts tracked: {len(posted_links)}")
     print(f"Monitoring {len(RSS_FEEDS)} feeds")
-    
+
     if not task_started:
         try:
             check_feeds.start()
@@ -325,6 +506,13 @@ async def on_ready():
             print("✅ Feed checker started")
         except Exception as e:
             print(f"Error starting feed checker: {e}")
+
+@bot.event
+async def on_command_error(ctx, error):
+    """Silently ignore unknown commands and bad args to save resources"""
+    if isinstance(error, (commands.CommandNotFound, commands.BadArgument, commands.MissingRequiredArgument)):
+        return
+    print(f"Command error: {error}")
 
 # ==================== RUN ====================
 
