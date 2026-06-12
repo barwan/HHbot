@@ -48,50 +48,6 @@ BASSHUNTER_SONGS = [
     ("Crash & Burn (2013)",                          "https://www.youtube.com/watch?v=ojZ_xW-ybgI"),
 ]
 
-# Måndag=0, Onsdag=2, Fredag=4, Söndag=6
-PING_DAYS = {0, 2, 4, 6}
-
-RANDOM_PINGS = [
-    # Skämt
-    ("😂 Skämt", "Varför bär skelett inte på väskor? För att de inte har några nerver."),
-    ("😂 Skämt", "Vad kallar man en ko utan ben? Köttfärs."),
-    ("😂 Skämt", "Vad kallar man en norsk kriminell? En fjordbrytare."),
-    ("😂 Skämt", "Vad kallar man en dansk som vinner på lotto? En lycklig granne."),
-    ("😂 Skämt", "Varför gick spöket till IKEA? Det behövde ett nytt lakan."),
-    ("😂 Skämt", "Vad sa havet till stranden? Ingenting, det vinkade bara."),
-    ("😂 Skämt", "Vad kallar man en snögubbe i juli? En pöl."),
-    ("😂 Skämt", "Varför är matematikböcker så ledsna? De har så många problem."),
-    ("😂 Skämt", "Hur vet man att en elefant har varit i kylskåpet? Det finns fotspår i smöret."),
-    ("😂 Skämt", "Varför cyklar inte elefanter? De passar inte i cykelbyxor."),
-    # Fakta
-    ("🧠 Slumpmässig fakta", "En bläckfisk har tre hjärtan och blått blod."),
-    ("🧠 Slumpmässig fakta", "Sverige har fler öar än något annat land i Europa – över 220 000 stycken."),
-    ("🧠 Slumpmässig fakta", "Honungsbin flyger i snitt 88 000 km för att producera ett kilo honung."),
-    ("🧠 Slumpmässig fakta", "Det tar 8 minuter och 20 sekunder för ljuset att nå jorden från solen."),
-    ("🧠 Slumpmässig fakta", "Katter sover ungefär 16 timmar om dagen. Lyckliga katter."),
-    ("🧠 Slumpmässig fakta", "En snigelsusp kan resa upp till 50 meter på en timme – om den verkligen anstränger sig."),
-    ("🧠 Slumpmässig fakta", "Wombaters bajsar i kubform. Det är det enda djuret som gör det."),
-    ("🧠 Slumpmässig fakta", "IKEA är uppkallad efter grundarens initialer och hemby: Ingvar Kamprad, Elmtaryd, Agunnaryd."),
-    ("🧠 Slumpmässig fakta", "En grupp flamingos kallas en flamboyance. Passande."),
-    ("🧠 Slumpmässig fakta", "Kroppen innehåller tillräckligt med järn för att smida en 8 cm lång spik."),
-    # Frågor / interaktion
-    ("🤔 Fråga för dagen", "Om du kunde äta en sak resten av livet, vad skulle det vara? Svara nedan 👇"),
-    ("🤔 Fråga för dagen", "Vad är det bästa med att bo i Sverige? Svara nedan 👇"),
-    ("🤔 Fråga för dagen", "Pizza eller tacos? Det här avgörs EN GÅNG FÖR ALLA. Svara nedan 👇"),
-    ("🤔 Fråga för dagen", "Vilket är det bästa TV-spelet någonsin? Fight me. Svara nedan 👇"),
-    ("🤔 Fråga för dagen", "Om du fick en superförmåga, vilken skulle du välja? Svara nedan 👇"),
-    # Random/roligt
-    ("💡 Dagens visdom", "Om du inte kan förklara något enkelt förstår du det inte tillräckligt bra. – Einstein (typ)"),
-    ("💡 Dagens visdom", "En dag är 86 400 sekunder. Vad gör du med dina?"),
-    ("💡 Dagens visdom", "Kom ihåg: även en bruten klocka har rätt två gånger om dagen."),
-    ("🎲 Slumpen säger", "Dagens lyckliga nummer är: " + str(random.randint(1, 100))),
-    ("🎲 Slumpen säger", "Sannolikheten att du ens existerar är 1 på 400 biljoner. Du vann redan lotteriet."),
-    ("🎵 Basshunter-hörna", "Påminnelse: Dota av Basshunter är ett mästerverk och det är inte diskuterbart."),
-    ("🇸🇪 Svenska klassiker", "Ingen fredag utan att påminna om att surströmming faktiskt är god. (Lögn.)"),
-    ("☕ Påminnelse", "Har du druckit vatten idag? Drick vatten. Gå nu."),
-    ("🌙 Kväll-check", "Vad har du åstadkommit idag? Även 'ingenting' räknas som ett val."),
-]
-
 JOKES = [
     "Varför bär skelett inte på väskor? För att de inte har några nerver.",
     "Vad kallas en sovande dinosaurie? En dinorsar.",
@@ -273,32 +229,25 @@ async def run_feeds():
     except Exception as e:
         print(f"Run error: {e}")
 
-# ==================== EVERYONE PING CHECKER ====================
+# ==================== FRIDAY CHECKER ====================
 
 async def check_everyone_ping():
-    """Post @everyone with random content on Mon/Wed/Fri/Sun (once per day)"""
+    """Post 'Nu e det fredag' every Friday (once per day)"""
     global last_ping_date
     try:
         now = datetime.now(timezone.utc)
-        if now.weekday() not in PING_DAYS:
+        if now.weekday() != 4:
             return
         today_str = now.strftime("%Y-%m-%d")
         if today_str == last_ping_date:
             return
 
-        title, content = random.choice(RANDOM_PINGS)
-
-        # Friday always gets the extra fredag message first
         channel = await bot.fetch_channel(GENERAL_CHANNEL_ID)
-        if now.weekday() == 4:
-            await channel.send("@everyone Nu e det fredag! 🎉")
-
-        embed = discord.Embed(title=title, description=content, color=0xFF6600)
-        await channel.send("@everyone", embed=embed)
+        await channel.send("@everyone Nu e det fredag! 🎉")
 
         last_ping_date = today_str
         save_ping_state(today_str)
-        print(f"✅ Everyone ping posted for {today_str} (day {now.weekday()})")
+        print(f"✅ Friday message posted for {today_str}")
     except Exception as e:
         print(f"Ping check error: {e}")
 
